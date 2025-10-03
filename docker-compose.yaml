@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: ncar
+      POSTGRES_USER: ncaruser
+      POSTGRES_PASSWORD: strongpassword
+    volumes:
+      - ncar_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    working_dir: /NCar/backend
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn backend.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - PYTHONPATH=/NCar/backend
+      - DB_NAME=ncar_db
+      - DB_USER=ncar_user
+      - DB_PASSWORD=ncar_pass
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    volumes:
+      - .:/NCar
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    working_dir: /NCar/bot
+    command: python main.py
+    environment:
+      - BOT_TOKEN=8233102014:AAEI_zLVgUXS4zqyMM83qyDetNnfCmHdlhg
+      - DB_NAME=ncar
+      - DB_USER=ncaruser
+      - DB_PASSWORD=strongpassword
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - PYTHONPATH=/NCar
+    depends_on:
+      - backend
+      - postgres
+    volumes:
+      - .:/NCar
+
+volumes:
+  ncar_db_data:
